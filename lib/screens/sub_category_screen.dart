@@ -87,8 +87,8 @@ class _SubCategoryScreenState extends State<SubCategoryScreen> {
             if (dataSnapshot.connectionState == ConnectionState.waiting) {
               return SizedBox(
                 height: MediaQuery.of(context).size.height * .5,
-                child: const Center(
-                  child: CircularProgressIndicator(),
+                child: Center(
+                  child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
                 ),
               );
             } else {

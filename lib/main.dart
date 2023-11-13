@@ -10,6 +10,7 @@ import 'package:elimiafrica/screens/verification_screen.dart';
 import 'package:elimiafrica/screens/webview_screen.dart';
 import 'package:elimiafrica/screens/webview_screen_iframe.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:logging/logging.dart';
 import 'providers/auth.dart';
 import 'providers/courses.dart';
 import 'providers/http_overrides.dart';
@@ -31,9 +32,11 @@ import 'screens/course_detail_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/tabs_screen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await FlutterDownloader.initialize(debug: true);
+void main() {
+  Logger.root.onRecord.listen((LogRecord rec) {
+    debugPrint(
+        '${rec.loggerName}>${rec.level.name}: ${rec.time}: ${rec.message}');
+  });
   HttpOverrides.global = PostHttpOverrides();
   runApp(const MyApp());
 }
@@ -81,7 +84,7 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<Auth>(
         builder: (ctx, auth, _) => MaterialApp(
-          title: 'Elimi App',
+          title: 'Elimi LMS',
           theme: ThemeData(
             fontFamily: 'google_sans',
             colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.red)

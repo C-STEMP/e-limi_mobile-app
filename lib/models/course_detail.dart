@@ -11,12 +11,12 @@ class CourseDetail {
   List<Section>? mSection;
 
   CourseDetail({
-    @required this.courseId,
-    @required this.courseIncludes,
-    @required this.courseRequirements,
-    @required this.courseOutcomes,
-    @required this.isWishlisted,
-    @required this.isPurchased,
-    @required this.mSection,
+    required this.courseId,
+    required this.courseIncludes,
+    required this.courseRequirements,
+    required this.courseOutcomes,
+    required this.isWishlisted,
+    required this.isPurchased,
+    required this.mSection,
   });
 }

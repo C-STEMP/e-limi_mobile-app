@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 
 import 'package:elimiafrica/models/common_functions.dart';
@@ -89,7 +91,7 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
@@ -110,8 +112,8 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
               ),
             ),
             _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(),
+                ? Center(
+                    child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
                   )
                 : Container(
                     width: double.infinity,
@@ -225,14 +227,14 @@ class _EditPasswordScreenState extends State<EditPasswordScreen> {
                             width: double.infinity,
                             child: MaterialButton(
                               onPressed: _submit,
-                              color: kRedColor,
+                              color: kPrimaryColor,
                               textColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 15, vertical: 15),
                               splashColor: Colors.redAccent,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(7.0),
-                                side: const BorderSide(color: kRedColor),
+                                side: const BorderSide(color: kPrimaryColor),
                               ),
                               child: const Text(
                                 'Update Now',

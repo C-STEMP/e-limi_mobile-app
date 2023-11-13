@@ -169,11 +169,11 @@ class _ForumReplyScreenState extends State<ForumReplyScreen> {
     // 12 Hour format:
     var date = DateFormat('dd MMM yyyy').format(dt);
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : SingleChildScrollView(
               child: Column(
@@ -330,7 +330,7 @@ class _ForumReplyScreenState extends State<ForumReplyScreen> {
                                                                 .toString(),
                                                             index);
                                                       },
-                                                      color: kRedColor,
+                                                      color: kPrimaryColor,
                                                       iconSize: 20,
                                                       tooltip: 'Remove',
                                                       icon: const Icon(
@@ -418,17 +418,17 @@ class _ForumReplyScreenState extends State<ForumReplyScreen> {
                         Expanded(
                           flex: 1,
                           child: MaterialButton(
-                            color: kRedColor,
+                            color: kPrimaryColor,
                             onPressed: _reply,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadiusDirectional.circular(5),
-                              side: const BorderSide(color: kRedColor),
+                              side: const BorderSide(color: kPrimaryColor),
                             ),
-                            child: Row(
+                            child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
+                              children: [
                                 Text(
                                   'Reply',
                                   style: TextStyle(

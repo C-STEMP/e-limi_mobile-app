@@ -21,7 +21,7 @@ class _FileDataScreenState extends State<FileDataScreen> {
     var text = html.Element.span()..appendHtml(widget.textData.toString());
     var textData = text.innerText;
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: SingleChildScrollView(
         child: Padding(

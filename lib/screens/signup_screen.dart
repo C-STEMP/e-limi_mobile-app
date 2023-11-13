@@ -365,18 +365,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: MaterialButton(
                                     elevation: 0,
                                     onPressed: _submit,
-                                    color: kRedColor,
+                                    color: kPrimaryColor,
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 20, vertical: 14),
                                     shape: RoundedRectangleBorder(
                                       borderRadius:
                                           BorderRadiusDirectional.circular(10),
-                                      // side: const BorderSide(color: kRedColor),
+                                      // side: const BorderSide(color: kPrimaryColor),
                                     ),
-                                    child: Row(
+                                    child: const Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
-                                      children: const [
+                                      children: [
                                         Text(
                                           'Sign Up',
                                           style: TextStyle(

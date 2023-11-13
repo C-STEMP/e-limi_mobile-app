@@ -103,13 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {
                       Navigator.of(context).pushNamed(AuthScreen.routeName);
                     },
-                    color: kRedColor,
+                    color: kPrimaryColor,
                     textColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 150, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(7.0),
-                      // side: const BorderSide(color: kRedColor),
+                      // side: const BorderSide(color: kPrimaryColor),
                     ),
                     child: const Text(
                       'Sign In',

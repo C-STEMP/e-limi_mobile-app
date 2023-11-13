@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:provider/provider.dart';
 
+import '../constants.dart';
+
 class MyWishlistScreen extends StatefulWidget {
   const MyWishlistScreen({Key? key}) : super(key: key);
 
@@ -66,9 +68,9 @@ class _MyWishlistScreenState extends State<MyWishlistScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const <Widget>[
+              children: <Widget>[
                 Text(
                   'My Wishlist',
                   style: TextStyle(fontWeight: FontWeight.w400, fontSize: 20),
@@ -81,8 +83,8 @@ class _MyWishlistScreenState extends State<MyWishlistScreen> {
                 Provider.of<Courses>(context, listen: false).fetchMyWishlist(),
             builder: (ctx, dataSnapshot) {
               if (dataSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(),
+                return Center(
+                  child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
                 );
               } else {
                 if (dataSnapshot.error != null) {
@@ -116,7 +118,7 @@ class _MyWishlistScreenState extends State<MyWishlistScreen> {
                 } else {
                   return Consumer<Courses>(
                     builder: (context, courseData, child) =>
-                        StaggeredGridView.countBuilder(
+                        AlignedGridView.count(
                       padding: const EdgeInsets.all(10.0),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -128,8 +130,6 @@ class _MyWishlistScreenState extends State<MyWishlistScreen> {
                         );
                         // return Text(myCourseData.items[index].title);
                       },
-                      staggeredTileBuilder: (int index) =>
-                          const StaggeredTile.fit(1),
                       mainAxisSpacing: 10.0,
                       crossAxisSpacing: 10.0,
                     ),

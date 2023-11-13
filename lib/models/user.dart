@@ -10,6 +10,9 @@ class User {
   String? lastName;
   String? email;
   String? role;
+  dynamic validity;
+  String? deviceVerification;
+  String? token;
   String? facebook;
   String? twitter;
   String? linkedIn;
@@ -22,6 +25,9 @@ class User {
     @required this.lastName,
     @required this.email,
     @required this.role,
+    @required this.validity,
+    @required this.deviceVerification,
+    @required this.token,
     this.facebook,
     this.twitter,
     this.linkedIn,

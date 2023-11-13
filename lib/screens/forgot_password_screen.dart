@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:elimiafrica/models/common_functions.dart';
 import 'package:elimiafrica/models/update_user_model.dart';
 import 'package:elimiafrica/screens/auth_screen.dart';
@@ -45,13 +47,10 @@ class _ForgotPasswordState extends State<ForgotPassword> {
       final UpdateUserModel user = await resendCode(_emailController.text);
 
       if (user.status == 200) {
-        // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
-        // ignore: use_build_context_synchronously
         Navigator.of(context).pushReplacementNamed(AuthScreen.routeName);
         CommonFunctions.showSuccessToast(user.message.toString());
       } else {
-        // ignore: use_build_context_synchronously
         CommonFunctions.showErrorDialog(user.message.toString(), context);
       }
     } catch (error) {
@@ -198,7 +197,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                                   padding: const EdgeInsets.all(15.0),
                                   child: MaterialButton(
                                     elevation: 0,
-                                    color: kRedColor,
+                                    color: kPrimaryColor,
                                     onPressed: _submit,
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 20, vertical: 16),
@@ -206,12 +205,12 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius:
                                           BorderRadiusDirectional.circular(10),
-                                      // side: const BorderSide(color: kRedColor),
+                                      // side: const BorderSide(color: kPrimaryColor),
                                     ),
-                                    child: Row(
+                                    child: const Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
-                                      children: const [
+                                      children: [
                                         Text(
                                           'Reset Password',
                                           style: TextStyle(

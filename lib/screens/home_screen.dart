@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:elimiafrica/providers/bundles.dart';
@@ -86,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
           topCourses = Provider.of<Courses>(context, listen: false).topItems;
         });
       });
+      Provider.of<Courses>(context).filterCourses('all', 'all', 'all', 'all', 'all');
       Provider.of<Bundles>(context).fetchBundle(true).then((_) {
         setState(() {
           bundles = Provider.of<Bundles>(context, listen: false).bundleItems;
@@ -133,8 +136,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (dataSnapshot.connectionState == ConnectionState.waiting) {
               return SizedBox(
                 height: MediaQuery.of(context).size.height * .5,
-                child: const Center(
-                  child: CircularProgressIndicator(),
+                child: Center(
+                  child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
                 ),
               );
             } else {
@@ -170,6 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
               } else {
                 return Column(
                   children: [
+                    if(topCourses.isNotEmpty)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -195,11 +199,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                             padding: const EdgeInsets.all(0),
                             child: Row(
-                              children: const [
-                                Text('All courses'),
+                              children: [
+                                const Text('All courses'),
                                 Icon(
                                   Icons.arrow_forward_ios_rounded,
-                                  color: iLongArrowRightColor,
+                                  color: kPrimaryColor.withOpacity(0.7),
                                   size: 18,
                                 ),
                               ],
@@ -209,33 +213,36 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     _isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(),
+                        ? Center(
+                            child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
                           )
-                        : Container(
-                            margin: const EdgeInsets.symmetric(vertical: 0.0),
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            height: 258.0,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (ctx, index) {
-                                return CourseGrid(
-                                  id: topCourses[index].id,
-                                  title: topCourses[index].title,
-                                  thumbnail: topCourses[index].thumbnail,
-                                  instructorName: topCourses[index].instructor,
-                                  instructorImage:
-                                      topCourses[index].instructorImage,
-                                  rating: topCourses[index].rating,
-                                  price: topCourses[index].price,
-                                );
-                              },
-                              itemCount: topCourses.length,
-                            ),
-                          ),
+                        : topCourses.isNotEmpty 
+                          ? Container(
+                              margin: const EdgeInsets.symmetric(vertical: 0.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              height: 258.0,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (ctx, index) {
+                                  return CourseGrid(
+                                    id: topCourses[index].id,
+                                    title: topCourses[index].title,
+                                    thumbnail: topCourses[index].thumbnail,
+                                    instructorName: topCourses[index].instructor,
+                                    instructorImage:
+                                        topCourses[index].instructorImage,
+                                    rating: topCourses[index].rating,
+                                    price: topCourses[index].price,
+                                  );
+                                },
+                                itemCount: topCourses.length,
+                              ),
+                            ) 
+                          : const SizedBox(height: 0),
                     if (bundleStatus == true)
                       Column(
                         children: [
+                          if(bundles.isNotEmpty)
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(
@@ -257,11 +264,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                   },
                                   padding: const EdgeInsets.all(0),
                                   child: Row(
-                                    children: const [
-                                      Text('All bundles'),
+                                    children: [
+                                      const Text('All bundles'),
                                       Icon(
                                         Icons.arrow_forward_ios_rounded,
-                                        color: iLongArrowRightColor,
+                                        color: kPrimaryColor.withOpacity(0.7),
                                         size: 18,
                                       ),
                                     ],
@@ -270,29 +277,31 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-                          Container(
-                            margin: const EdgeInsets.symmetric(vertical: 0.0),
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            height: 240.0,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (ctx, index) {
-                                return BundleGrid(
-                                  id: bundles[index].id,
-                                  title: bundles[index].title,
-                                  banner:
-                                      // ignore: prefer_interpolation_to_compose_strings
-                                      '$BASE_URL/uploads/course_bundle/banner/' +
-                                          bundles[index].banner,
-                                  averageRating: bundles[index].averageRating,
-                                  numberOfRatings:
-                                      bundles[index].numberOfRatings,
-                                  price: bundles[index].price,
-                                );
-                              },
-                              itemCount: bundles.length,
-                            ),
-                          ),
+                          bundles.isNotEmpty 
+                            ? Container(
+                                margin: const EdgeInsets.symmetric(vertical: 0.0),
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                height: 240.0,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemBuilder: (ctx, index) {
+                                    return BundleGrid(
+                                      id: bundles[index].id,
+                                      title: bundles[index].title,
+                                      banner:
+                                          // ignore: prefer_interpolation_to_compose_strings
+                                          '$BASE_URL/uploads/course_bundle/banner/' +
+                                              bundles[index].banner,
+                                      averageRating: bundles[index].averageRating,
+                                      numberOfRatings:
+                                          bundles[index].numberOfRatings,
+                                      price: bundles[index].price,
+                                    );
+                                  },
+                                  itemCount: bundles.length,
+                                ),
+                              ) 
+                            : const SizedBox(height: 0),
                         ],
                       ),
                     Container(
@@ -320,11 +329,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                             padding: const EdgeInsets.all(0),
                             child: Row(
-                              children: const [
-                                Text('All courses'),
+                              children: [
+                                const Text('All courses'),
                                 Icon(
                                   Icons.arrow_forward_ios_rounded,
-                                  color: iLongArrowRightColor,
+                                  color: kPrimaryColor.withOpacity(0.7),
                                   size: 18,
                                 ),
                               ],

@@ -2,18 +2,18 @@ import 'package:elimiafrica/widgets/app_bar_two.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-class WebViewScreenIframe extends StatefulWidget {
-  static const routeName = '/webview-iframe';
+class VimeoIframe extends StatefulWidget {
+  static const routeName = '/vimeo-iframe';
   
   final String? url;
 
-  const WebViewScreenIframe({Key? key, required this.url}) : super(key: key);
+  const VimeoIframe({Key? key, required this.url}) : super(key: key);
 
   @override
-  State<WebViewScreenIframe> createState() => _WebViewScreenIframeState();
+  State<VimeoIframe> createState() => _VimeoIframeState();
 }
 
-class _WebViewScreenIframeState extends State<WebViewScreenIframe> {
+class _VimeoIframeState extends State<VimeoIframe> {
   // final Completer<WebViewController> _controller =
   //     Completer<WebViewController>();
 
@@ -26,7 +26,10 @@ class _WebViewScreenIframeState extends State<WebViewScreenIframe> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..loadRequest(
-        Uri.dataFromString('''<html><body><iframe style="height: 100%;width:100%" src="${widget.url}" allowfullscreen></iframe></body></html>''',
+        Uri.dataFromString('''<iframe 
+                src="${widget.url}?loop=0&autoplay=0" 
+                width="100%" height="100%" frameborder="0" allow="fullscreen" 
+                allowfullscreen></iframe>''',
             mimeType: 'text/html'),
       );
   }

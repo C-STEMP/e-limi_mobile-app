@@ -1,19 +1,19 @@
 // ignore_for_file: use_build_context_synchronously, deprecated_member_use
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
-import 'dart:ui';
 import 'package:elimiafrica/models/common_functions.dart';
 import 'package:elimiafrica/models/course_db_model.dart';
 import 'package:elimiafrica/models/section_db_model.dart';
 import 'package:elimiafrica/models/video_db_model.dart';
 import 'package:elimiafrica/providers/database_helper.dart';
 import 'package:elimiafrica/screens/file_data_screen.dart';
+import 'package:elimiafrica/screens/pdf_view_screen.dart';
 import 'package:elimiafrica/widgets/custom_text.dart';
 import 'package:elimiafrica/widgets/forum_tab_widget.dart';
 import 'package:elimiafrica/widgets/live_class_tab_widget.dart';
-import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:background_downloader/background_downloader.dart';
 import 'package:html_unescape/html_unescape.dart';
 import 'package:http/http.dart' as http;
 import 'package:elimiafrica/constants.dart';
@@ -21,9 +21,7 @@ import 'package:elimiafrica/models/lesson.dart';
 import 'package:elimiafrica/providers/my_courses.dart';
 import 'package:elimiafrica/widgets/app_bar_two.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:percent_indicator/percent_indicator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:share/share.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -56,7 +54,6 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late ScrollController _scrollController;
-  // late bool fixedScroll;
 
   var _isInit = true;
   var _isLoading = false;
@@ -67,8 +64,6 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
   dynamic data;
   Lesson? _activeLesson;
 
-  final ReceivePort _port = ReceivePort();
-  String buttonText = "Download";
   String downloadId = "";
 
   dynamic path;
@@ -80,30 +75,178 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
   dynamic sectionTitle;
   dynamic thumbnail;
 
+  DownloadTask? backgroundDownloadTask;
+  TaskStatus? downloadTaskStatus;
+
+  late StreamController<TaskProgressUpdate> progressUpdateStream;
+
+  Future<void> _refresh() async {
+    
+      setState(() {
+        _isLoading = true;
+      });
+
+      Provider.of<MyCourses>(context, listen: false)
+          .fetchCourseSections(widget.courseId)
+          .then((_) {
+        final activeSections =
+            Provider.of<MyCourses>(context, listen: false).sectionItems;
+        setState(() {
+          _isLoading = false;
+          _activeLesson = activeSections.first.mLesson!.first;
+        });
+      });
+    
+    setState(() {
+      _isLoading = true;
+    });
+  }
+
   @override
   void initState() {
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
     _tabController = TabController(length: widget.len, vsync: this);
     _tabController.addListener(_smoothScrollToTop);
+    progressUpdateStream = StreamController.broadcast();
     super.initState();
     addonStatus('live-class');
     addonStatus('forum');
-    bindBackgroundIsolate();
-    FlutterDownloader.registerCallback(downloadCallback);
+    FileDownloader().configure(globalConfig: [
+      (Config.requestTimeout, const Duration(seconds: 100)),
+    ], androidConfig: [
+      (Config.useCacheDir, Config.whenAble),
+    ], iOSConfig: [
+      (Config.localize, {'Cancel': 'StopIt'}),
+    ]).then((result) => debugPrint('Configuration result = $result'));
+
+    // Registering a callback and configure notifications
+    FileDownloader()
+      .registerCallbacks(
+          taskNotificationTapCallback: myNotificationTapCallback)
+      .configureNotificationForGroup(FileDownloader.defaultGroup,
+          // For the main download button
+          // which uses 'enqueue' and a default group
+          running: const TaskNotification('Download {filename}',
+              'File: {filename} - {progress} - speed {networkSpeed} and {timeRemaining} remaining'),
+          complete: const TaskNotification(
+              'Download {filename}', 'Download complete'),
+          error: const TaskNotification(
+              'Download {filename}', 'Download failed'),
+          paused: const TaskNotification(
+              'Download {filename}', 'Paused with metadata {metadata}'),
+          progressBar: true)
+      .configureNotification(
+          // for the 'Download & Open' dog picture
+          // which uses 'download' which is not the .defaultGroup
+          // but the .await group so won't use the above config
+          complete: const TaskNotification(
+              'Download {filename}', 'Download complete'),
+          tapOpensFile: true); // dog can also open directly from tap
+
+    // Listen to updates and process
+    FileDownloader().updates.listen((update) async {
+      switch (update) {
+        case TaskStatusUpdate _:
+          if (update.task == backgroundDownloadTask) {
+            setState(() {
+              downloadTaskStatus = update.status;
+            });
+          }
+          if(downloadTaskStatus == TaskStatus.complete) {
+            await DatabaseHelper.instance.addVideo(
+              VideoModel(
+                  title: fileName,
+                  path: path,
+                  lessonId: lessonId,
+                  courseId: courseId,
+                  sectionId: sectionId,
+                  courseTitle: courseTitle,
+                  sectionTitle: sectionTitle,
+                  thumbnail: thumbnail,
+                  downloadId: downloadId),
+            );
+            var val = await DatabaseHelper.instance.courseExists(courseId);
+            if (val != true) {
+              await DatabaseHelper.instance.addCourse(
+                CourseDbModel(
+                    courseId: courseId,
+                    courseTitle: courseTitle,
+                    thumbnail: thumbnail),
+              );
+            }
+            var sec = await DatabaseHelper.instance.sectionExists(sectionId);
+            if (sec != true) {
+              await DatabaseHelper.instance.addSection(
+                SectionDbModel(
+                    courseId: courseId,
+                    sectionId: sectionId,
+                    sectionTitle: sectionTitle),
+              );
+            }
+          }
+          break;
+
+        case TaskProgressUpdate _:
+          progressUpdateStream.add(update); // pass on to widget for indicator
+          break;
+      }
+    });
   }
 
-  static void downloadCallback(
-      String id,  int status, int progress) {
-    final SendPort? send =
-        IsolateNameServer.lookupPortByName('downloader_send_port');
-    send!.send([id, status, progress]);
+  /// Process the user tapping on a notification by printing a message
+  void myNotificationTapCallback(Task task, NotificationType notificationType) {
+    debugPrint(
+        'Tapped notification $notificationType for taskId ${task.directory}');
+  }
+
+  Future<void> processButtonPress(lesson, myCourseId, coTitle, coThumbnail, secTitle, secId) async {
+    // print("${BaseDirectory.applicationSupport}/system");
+    String fileUrl;
+
+    if (lesson.videoTypeWeb == 'html5' || lesson.videoTypeWeb == 'amazon') {
+      fileUrl = lesson.videoUrlWeb.toString();
+    } else if (lesson.videoTypeWeb == 'google_drive') {
+      final RegExp regExp = RegExp(r'[-\w]{25,}');
+      final Match? match = regExp.firstMatch(lesson.videoUrlWeb.toString());
+
+      fileUrl = 'https://drive.google.com/uc?export=download&id=${match!.group(0)}';
+
+    } else {
+      final token = await SharedPreferenceHelper().getAuthToken();
+      fileUrl = '$BASE_URL/api_files/offline_video_for_mobile_app/${lesson.id}/$token';
+    }
+
+    backgroundDownloadTask = DownloadTask(
+      url: fileUrl,
+      filename: lesson.title.toString(),
+      directory: 'system',
+      baseDirectory: BaseDirectory.applicationSupport,
+      updates: Updates.statusAndProgress,
+      allowPause: true,
+      metaData: '<video metaData>');
+    await FileDownloader().enqueue(backgroundDownloadTask!);
+    if (mounted) {
+      setState(() {
+        path = "/data/user/0/com.example.academy_app/files/system";
+        fileName = lesson.title.toString();
+        lessonId = lesson.id;
+        courseId = myCourseId;
+        sectionId = secId;
+        courseTitle = coTitle;
+        sectionTitle = secTitle;
+        thumbnail = coThumbnail;
+      });
+
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _scrollController.dispose();
+    progressUpdateStream.close();
+    FileDownloader().resetUpdates();
     super.dispose();
   }
 
@@ -125,68 +268,12 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
     // });
   }
 
-  void unbindBackgroundIsolate() {
-    IsolateNameServer.removePortNameMapping('downloader_send_port');
-  }
-
-  void bindBackgroundIsolate() {
-    bool isSuccess = IsolateNameServer.registerPortWithName(
-        _port.sendPort, 'downloader_send_port');
-    if (!isSuccess) {
-      unbindBackgroundIsolate();
-      bindBackgroundIsolate();
-      return;
-    }
-    _port.listen((dynamic data) async {
-      // print(data);
-      // print("by" + _downloaded.toString());
-      DownloadTaskStatus status = data[1];
-      // int progress = data[2] ?? 0;
-      // print(progress);
-      if (status == DownloadTaskStatus.complete) {
-        await DatabaseHelper.instance.addVideo(
-          VideoModel(
-              title: fileName,
-              path: path,
-              lessonId: lessonId,
-              courseId: courseId,
-              sectionId: sectionId,
-              courseTitle: courseTitle,
-              sectionTitle: sectionTitle,
-              thumbnail: thumbnail,
-              downloadId: downloadId),
-        );
-        var val = await DatabaseHelper.instance.courseExists(courseId);
-        if (val != true) {
-          await DatabaseHelper.instance.addCourse(
-            CourseDbModel(
-                courseId: courseId,
-                courseTitle: courseTitle,
-                thumbnail: thumbnail),
-          );
-        }
-        var sec = await DatabaseHelper.instance.sectionExists(sectionId);
-        if (sec != true) {
-          await DatabaseHelper.instance.addSection(
-            SectionDbModel(
-                courseId: courseId,
-                sectionId: sectionId,
-                sectionTitle: sectionTitle),
-          );
-        }
-      }
-    });
-  }
-
   @override
   void didChangeDependencies() {
     if (_isInit) {
       setState(() {
         _isLoading = true;
       });
-      // final args =
-      //     ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-      // final myCourseId = args['id'] as int;
 
       Provider.of<MyCourses>(context, listen: false)
           .fetchCourseSections(widget.courseId)
@@ -209,43 +296,23 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
     if (lesson.videoTypeWeb == 'YouTube') {
       CommonFunctions.showSuccessToast(
           'This video format is not supported for download.');
-    } else if (lesson.videoTypeWeb == 'Vimeo') {
+    } else if (lesson.videoTypeWeb == 'Vimeo' || lesson.videoTypeWeb == 'vimeo') {
       CommonFunctions.showSuccessToast(
           'This video format is not supported for download.');
     } else {
       var les = await DatabaseHelper.instance.lessonExists(lesson.id);
-      if (les != true) {
-        PermissionStatus permissionStatus = await Permission.storage.request();
-        if (permissionStatus != PermissionStatus.granted) return;
-        Directory directory;
-        directory = (await getApplicationSupportDirectory());
-        String dirName = "aca/.content";
-        String contentName = lesson.title.toString();
-        Directory file = Directory("${directory.path}/$dirName");
-        file.createSync(recursive: true);
-        File nomedia = File("${directory.path}/$dirName/.nomedia");
-        // print(nomedia);
-        if (!nomedia.existsSync()) nomedia.createSync(recursive: true);
-        downloadId = (await FlutterDownloader.enqueue(
-            url: lesson.videoUrlWeb.toString(),
-            savedDir: "${directory.path}/$dirName",
-            requiresStorageNotLow: true,
-            showNotification: true,
-            openFileFromNotification: false,
-            fileName: contentName))!;
-        setState(() {
-          path = "${directory.path}/$dirName";
-          fileName = contentName;
-          lessonId = lesson.id;
-          courseId = myCourseId;
-          sectionId = secId;
-          courseTitle = coTitle;
-          sectionTitle = secTitle;
-          thumbnail = coThumbnail;
-          buttonText = "Downloading...";
-        });
+      if(les == true) {
+        var check = await DatabaseHelper.instance.lessonDetails(lesson.id);
+        File checkPath = File("${check['path']}/${check['title']}");
+        // print(checkPath.existsSync());
+        if (!checkPath.existsSync()) {
+          await DatabaseHelper.instance.removeVideo(check['id']);
+          processButtonPress(lesson, myCourseId, coTitle, coThumbnail, secTitle, secId);
+        } else {
+          CommonFunctions.showSuccessToast('Video was downloaded already.');
+        }
       } else {
-        CommonFunctions.showSuccessToast('Video was downloaded already.');
+        processButtonPress(lesson, myCourseId, coTitle, coThumbnail, secTitle, secId);
       }
     }
   }
@@ -265,9 +332,9 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
   }
 
   void lessonAction(Lesson lesson) async {
+    // print(lesson.videoTypeWeb);
     if (lesson.lessonType == 'video') {
-      if (lesson.videoTypeWeb == 'system' ||
-          lesson.videoTypeWeb == 'html5' ||
+      if (lesson.videoTypeWeb == 'html5' ||
           lesson.videoTypeWeb == 'amazon') {
         Navigator.push(
           context,
@@ -277,9 +344,38 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                   lessonId: lesson.id!,
                   videoUrl: lesson.videoUrlWeb!)),
         );
-      } else if (lesson.videoTypeWeb == 'Vimeo') {
+      } else if(lesson.videoTypeWeb == 'system'){
+        final token = await SharedPreferenceHelper().getAuthToken();
+        var url = '$BASE_URL/api_files/file_content?course_id=${widget.courseId}&lesson_id=${lesson.id}&auth_token=$token';
+        // print(url);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PlayVideoFromNetwork(
+                  courseId: widget.courseId,
+                  lessonId: lesson.id!,
+                  videoUrl: url)),
+        );
+      } else if(lesson.videoTypeWeb == 'google_drive'){
+
+        final RegExp regExp = RegExp(r'[-\w]{25,}');
+        final Match? match = regExp.firstMatch(lesson.videoUrlWeb.toString());
+
+        String url = 'https://drive.google.com/uc?export=download&id=${match!.group(0)}';
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PlayVideoFromNetwork(
+                  courseId: widget.courseId,
+                  lessonId: lesson.id!,
+                  videoUrl: url)),
+        );
+        
+      } else if (lesson.videoTypeWeb!.toLowerCase() == 'vimeo') {
+        // print(lesson.videoTypeWeb);
         String vimeoVideoId = lesson.videoUrlWeb!.split('/').last;
-        // print(lesson.vimeoVideoId);
+        // print(vimeoVideoId);
         Navigator.push(
             context,
             MaterialPageRoute(
@@ -288,6 +384,12 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                   lessonId: lesson.id!,
                   vimeoVideoId: vimeoVideoId),
             ));
+        // String vimUrl = 'https://player.vimeo.com/video/$vimeoVideoId';
+        // Navigator.push(
+        //     context,
+        //     MaterialPageRoute(
+        //         builder: (context) =>
+        //             VimeoIframe(url: vimUrl)));
       } else {
         Navigator.push(
             context,
@@ -303,19 +405,36 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
       final token = await SharedPreferenceHelper().getAuthToken();
       final url = '$BASE_URL/api/quiz_mobile_web_view/${lesson.id}/$token';
       // print(_url);
-      Navigator.of(context).pushNamed(WebViewScreen.routeName, arguments: url);
+      Navigator.push(context,
+        MaterialPageRoute(
+          builder: (context) => WebViewScreen(url: url),
+        ),
+      ).then((result) {
+        _refresh();
+      });
     } else {
       if (lesson.attachmentType == 'iframe') {
         final url = lesson.attachment;
-        Navigator.of(context)
-            .pushNamed(WebViewScreenIframe.routeName, arguments: url);
-      } else if (lesson.attachmentType == 'description') {
-        data = lesson.attachment;
         Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (context) =>
-                    FileDataScreen(textData: data, note: lesson.summary!)));
+                    WebViewScreenIframe(url: url)));
+      } else if (lesson.attachmentType == 'description') {
+        // data = lesson.attachment;
+        // Navigator.push(
+        //     context,
+        //     MaterialPageRoute(
+        //         builder: (context) =>
+        //             FileDataScreen(textData: data, note: lesson.summary!)));
+        final token = await SharedPreferenceHelper().getAuthToken();
+        final url = '$BASE_URL/api/lesson_mobile_web_view/${lesson.id}/$token';
+        // print(_url);
+        Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      WebViewScreen(url: url)));
       } else if (lesson.attachmentType == 'txt') {
         final url = '$BASE_URL/uploads/lesson_files/${lesson.attachment}';
         data = await http.read(Uri.parse(url));
@@ -324,11 +443,17 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
             MaterialPageRoute(
                 builder: (context) =>
                     FileDataScreen(textData: data, note: lesson.summary!)));
+      } else if(lesson.attachmentType == 'pdf') {
+        debugPrint("***************** Implementing Pdf Reader Here **********************");
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => PDFViewerScreen(pdfUrl: lesson.attachmentUrl ?? "")));
+
       } else {
-        // final _url = lesson.attachmentUrl;
-        // Navigator.of(context)
-        //     .pushNamed(MyCourseDownloadScreen.routeName, arguments: _url);
-        final url = '$BASE_URL/uploads/lesson_files/${lesson.attachment}';
+        final token = await SharedPreferenceHelper().getAuthToken();
+        final url = '$BASE_URL/api_files/file_content?course_id=${widget.courseId}&lesson_id=${lesson.id}&auth_token=$token';
+        // print(url);
         _launchURL(url);
       }
     }
@@ -458,7 +583,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                           lineHeight: 8.0,
                           backgroundColor: kBackgroundColor,
                           percent: myLoadedCourse.courseCompletion! / 100,
-                          progressColor: kRedColor,
+                          progressColor: kPrimaryColor,
                         ),
                       ),
                       Padding(
@@ -660,7 +785,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                               flex: 1,
                                                               child: Checkbox(
                                                                   activeColor:
-                                                                      kRedColor,
+                                                                      kPrimaryColor,
                                                                   value: lesson
                                                                               .isCompleted ==
                                                                           '1'
@@ -678,7 +803,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                               flex: 1,
                                                               child: Checkbox(
                                                                   activeColor:
-                                                                      kRedColor,
+                                                                      kPrimaryColor,
                                                                   value: lesson
                                                                               .isCompleted ==
                                                                           '1'
@@ -745,7 +870,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                                   child:
                                                                       Checkbox(
                                                                           activeColor:
-                                                                              kRedColor,
+                                                                              kPrimaryColor,
                                                                           value: lesson.isCompleted == '1'
                                                                               ? true
                                                                               : false,
@@ -759,7 +884,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                                   child:
                                                                       Checkbox(
                                                                           activeColor:
-                                                                              kRedColor,
+                                                                              kPrimaryColor,
                                                                           value: lesson.isCompleted == '1'
                                                                               ? true
                                                                               : false,
@@ -797,7 +922,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                               flex: 1,
                                                               child: Checkbox(
                                                                   activeColor:
-                                                                      kRedColor,
+                                                                      kPrimaryColor,
                                                                   value: lesson
                                                                               .isCompleted ==
                                                                           '1'
@@ -815,7 +940,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                               flex: 1,
                                                               child: Checkbox(
                                                                   activeColor:
-                                                                      kRedColor,
+                                                                      kPrimaryColor,
                                                                   value: lesson
                                                                               .isCompleted ==
                                                                           '1'
@@ -891,14 +1016,13 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                                   .file_download_outlined),
                                                               color: Colors
                                                                   .black45,
-                                                              onPressed: () {},
-                                                              // onPressed: () => _initDownload(
-                                                              //     lesson,
-                                                              //     widget.courseId,
-                                                              //     myLoadedCourse.title,
-                                                              //     myLoadedCourse.thumbnail,
-                                                              //     section.title,
-                                                              //     section.id),
+                                                              onPressed: () => _initDownload(
+                                                                  lesson,
+                                                                  widget.courseId,
+                                                                  myLoadedCourse.title,
+                                                                  myLoadedCourse.thumbnail,
+                                                                  section.title,
+                                                                  section.id),
                                                             ),
                                                           )
                                                         : section
@@ -916,15 +1040,13 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                                           .file_download_outlined),
                                                                   color: Colors
                                                                       .black45,
-                                                                  onPressed:
-                                                                      () {},
-                                                                  // onPressed: () => _initDownload(
-                                                                  //     lesson,
-                                                                  //     widget.courseId,
-                                                                  //     myLoadedCourse.title,
-                                                                  //     myLoadedCourse.thumbnail,
-                                                                  //     section.title,
-                                                                  //     section.id),
+                                                                  onPressed: () => _initDownload(
+                                                                      lesson,
+                                                                      widget.courseId,
+                                                                      myLoadedCourse.title,
+                                                                      myLoadedCourse.thumbnail,
+                                                                      section.title,
+                                                                      section.id),
                                                                 ),
                                                               )
                                                             : Container()
@@ -941,14 +1063,13 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                                   .file_download_outlined),
                                                               color: Colors
                                                                   .black45,
-                                                              onPressed: () {},
-                                                              // onPressed: () => _initDownload(
-                                                              //     lesson,
-                                                              //     widget.courseId,
-                                                              //     myLoadedCourse.title,
-                                                              //     myLoadedCourse.thumbnail,
-                                                              //     section.title,
-                                                              //     section.id),
+                                                              onPressed: () => _initDownload(
+                                                                  lesson,
+                                                                  widget.courseId,
+                                                                  myLoadedCourse.title,
+                                                                  myLoadedCourse.thumbnail,
+                                                                  section.title,
+                                                                  section.id),
                                                             ),
                                                           ),
                                             ],
@@ -990,7 +1111,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                               Expanded(
                                                 flex: 1,
                                                 child: Checkbox(
-                                                    activeColor: kRedColor,
+                                                    activeColor: kPrimaryColor,
                                                     value: lesson.isCompleted ==
                                                             '1'
                                                         ? true
@@ -1265,7 +1386,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                           flex: 1,
                                                           child: Checkbox(
                                                               activeColor:
-                                                                  kRedColor,
+                                                                  kPrimaryColor,
                                                               value:
                                                                   lesson.isCompleted ==
                                                                           '1'
@@ -1282,7 +1403,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                           flex: 1,
                                                           child: Checkbox(
                                                               activeColor:
-                                                                  kRedColor,
+                                                                  kPrimaryColor,
                                                               value:
                                                                   lesson.isCompleted ==
                                                                           '1'
@@ -1349,7 +1470,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                               flex: 1,
                                                               child: Checkbox(
                                                                   activeColor:
-                                                                      kRedColor,
+                                                                      kPrimaryColor,
                                                                   value: lesson
                                                                               .isCompleted ==
                                                                           '1'
@@ -1367,7 +1488,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                               flex: 1,
                                                               child: Checkbox(
                                                                   activeColor:
-                                                                      kRedColor,
+                                                                      kPrimaryColor,
                                                                   value: lesson
                                                                               .isCompleted ==
                                                                           '1'
@@ -1431,7 +1552,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                           flex: 1,
                                                           child: Checkbox(
                                                               activeColor:
-                                                                  kRedColor,
+                                                                  kPrimaryColor,
                                                               value:
                                                                   lesson.isCompleted ==
                                                                           '1'
@@ -1448,7 +1569,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                                           flex: 1,
                                                           child: Checkbox(
                                                               activeColor:
-                                                                  kRedColor,
+                                                                  kPrimaryColor,
                                                               value:
                                                                   lesson.isCompleted ==
                                                                           '1'
@@ -1632,7 +1753,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                                           Expanded(
                                             flex: 1,
                                             child: Checkbox(
-                                                activeColor: kRedColor,
+                                                activeColor: kPrimaryColor,
                                                 value: lesson.isCompleted == '1'
                                                     ? true
                                                     : false,
@@ -1796,7 +1917,7 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                             lineHeight: 8.0,
                             backgroundColor: kBackgroundColor,
                             percent: myLoadedCourse.courseCompletion! / 100,
-                            progressColor: kRedColor,
+                            progressColor: kPrimaryColor,
                           ),
                         ),
                         Padding(
@@ -1842,21 +1963,21 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                   child: TabBar(
                     controller: _tabController,
                     isScrollable: false,
-                    indicatorColor: kRedColor,
+                    indicatorColor: kPrimaryColor,
                     padding: EdgeInsets.zero,
                     indicatorPadding: EdgeInsets.zero,
                     labelPadding: EdgeInsets.zero,
                     indicatorSize: TabBarIndicatorSize.tab,
                     indicator: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        color: kRedColor),
+                        color: kPrimaryColor),
                     unselectedLabelColor: Colors.black87,
                     labelColor: Colors.white,
                     tabs: [
-                      Tab(
+                      const Tab(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
+                          children: [
                             Icon(
                               Icons.play_lesson,
                               size: 15,
@@ -1872,10 +1993,10 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                         ),
                       ),
                       if (liveClassStatus == true)
-                        Tab(
+                        const Tab(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
+                            children: [
                               Icon(Icons.video_call),
                               Text(
                                 'Live Class',
@@ -1888,10 +2009,10 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
                           ),
                         ),
                       if (courseForumStatus == true)
-                        Tab(
+                        const Tab(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
+                            children: [
                               Icon(Icons.question_answer_outlined),
                               Text(
                                 'Forum',
@@ -1924,11 +2045,11 @@ class _MyCourseDetailScreenState extends State<MyCourseDetailScreen>
     }
 
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : liveClassStatus == false && courseForumStatus == false
               ? myCourseBody()

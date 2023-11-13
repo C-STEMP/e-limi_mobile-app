@@ -49,11 +49,11 @@ class _BundleListScreenState extends State<BundleListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : SingleChildScrollView(
               child: Column(

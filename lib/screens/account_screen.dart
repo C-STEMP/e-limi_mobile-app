@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:elimiafrica/providers/auth.dart';
+import 'package:elimiafrica/screens/account_remove_screen.dart';
 import 'package:elimiafrica/widgets/account_list_tile.dart';
 import 'package:elimiafrica/widgets/custom_text.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -8,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
+import '../providers/database_helper.dart';
 import 'downloaded_course_list.dart';
 import 'edit_password_screen.dart';
 import 'edit_profile_screen.dart';
@@ -42,11 +45,45 @@ class _AccountScreenState extends State<AccountScreen> {
       });
     }
   }
+  List<int> courseArr = [];
+
+
+  Future<List<Map<String, dynamic>>?> getVideos() async {
+    List<Map<String, dynamic>> listMap =
+        await DatabaseHelper.instance.queryAllRows('video_list');
+    setState(() {
+      for (var map in listMap) {
+        File checkPath = File("${map['path']}/${map['title']}");
+        if(checkPath.existsSync()) {
+          courseArr.add(map['course_id']);
+        } else {
+          DatabaseHelper.instance.removeVideo(map['id']);
+        }
+      }
+    });
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>?> getCourse() async {
+    List<Map<String, dynamic>> listMap =
+        await DatabaseHelper.instance.queryAllRows('course_list');
+    
+    for (var map in listMap) {
+      if(!courseArr.contains(map['course_id'])){
+        await DatabaseHelper.instance.removeCourse(map['course_id']);
+        await DatabaseHelper.instance.removeCourseSection(map['course_id']);
+      }
+    }
+
+    return null;
+  }
 
   @override
   void initState() {
     super.initState();
     initConnectivity();
+    getVideos();
+    getCourse();
     systemSettings();
 
     _connectivitySubscription =
@@ -83,7 +120,7 @@ class _AccountScreenState extends State<AccountScreen> {
         MaterialState.focused,
       }.contains)
           ? Colors.green
-          : kRedColor;
+          : kPrimaryColor;
 
   @override
   void dispose() {
@@ -97,8 +134,8 @@ class _AccountScreenState extends State<AccountScreen> {
         future: Provider.of<Auth>(context, listen: false).getUserInfo(),
         builder: (ctx, dataSnapshot) {
           if (dataSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             );
           } else {
             if (dataSnapshot.error != null) {
@@ -254,6 +291,29 @@ class _AccountScreenState extends State<AccountScreen> {
                                 onTap: () {
                                   Navigator.of(context)
                                       .pushNamed(EditPasswordScreen.routeName);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: 65,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 10, right: 10),
+                            child: Card(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0.1,
+                              child: GestureDetector(
+                                child: const AccountListTile(
+                                  titleText: 'Delete Your Account',
+                                  icon: Icons.person_remove_outlined,
+                                  actionType: 'account_delete',
+                                ),
+                                onTap: () {
+                                  Navigator.of(context)
+                                      .pushNamed(AccountRemoveScreen.routeName);
                                 },
                               ),
                             ),

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 import 'package:elimiafrica/constants.dart';
 import 'package:elimiafrica/models/common_functions.dart';
@@ -27,6 +29,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'first_name': '',
     'last_name': '',
     'email': '',
+    'role': '',
+    'validity': '',
+    'device_verification': '',
+    'token': '',
     'bio': '',
     'twitter': '',
     'facebook': '',
@@ -35,7 +41,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _emailController = TextEditingController();
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
@@ -50,11 +55,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // Log user in
       // print(_userData['first_name']);
       final updateUser = User(
-        userId: 'Temp',
+        userId: _userData['user_id'],
         firstName: _userData['first_name'],
         lastName: _userData['last_name'],
         email: _userData['email'],
-        role: 'Temp',
+        role: _userData['role'],
+        validity: _userData['validity'],
+        deviceVerification: _userData['device_verification'],
+        token: _userData['token'],
         biography: _userData['bio'],
         twitter: _userData['twitter'],
         facebook: _userData['facebook'],
@@ -98,14 +106,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: FutureBuilder(
         future: Provider.of<Auth>(context, listen: false).getUserInfo(),
         builder: (ctx, dataSnapshot) {
           if (dataSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             );
           } else {
             if (dataSnapshot.error != null) {
@@ -230,41 +238,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     child: Padding(
                                       padding: EdgeInsets.only(bottom: 5.0),
                                       child: Text(
-                                        'Email',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: TextFormField(
-                                      style: const TextStyle(fontSize: 14),
-                                      initialValue: user.email,
-                                      decoration: getInputDecoration(
-                                        'Email',
-                                        Icons.email,
-                                      ),
-                                      // controller: _emailController,
-                                      keyboardType: TextInputType.emailAddress,
-                                      validator: (input) =>
-                                          !RegExp(r"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
-                                                  .hasMatch(input!)
-                                              ? "Email Id should be valid"
-                                              : null,
-                                      onSaved: (value) {
-                                        _userData['email'] = value.toString();
-                                        _emailController.text = value as String;
-                                      },
-                                    ),
-                                  ),
-                                  const Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Padding(
-                                      padding: EdgeInsets.only(bottom: 5.0),
-                                      child: Text(
                                         'Biography',
                                         style: TextStyle(
                                           fontSize: 16,
@@ -369,8 +342,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     child: _isLoading
                                         ? const CircularProgressIndicator()
                                         : MaterialButton(
-                                            onPressed: _submit,
-                                            color: kRedColor,
+                                            onPressed: () {
+                                              _userData['user_id'] = user.userId!;
+                                              _userData['email'] = user.email!;
+                                              _userData['role'] = user.role!;
+                                              _userData['validity'] = user.validity.toString();
+                                              _userData['device_verification'] = user.deviceVerification!;
+                                              _userData['token'] = user.token!;
+                                              _submit();
+                                              // print(_userData['validity']);
+                                            },
+                                            color: kPrimaryColor,
                                             textColor: Colors.white,
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 15, vertical: 15),
@@ -379,7 +361,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                               borderRadius:
                                                   BorderRadius.circular(7.0),
                                               side: const BorderSide(
-                                                  color: kRedColor),
+                                                  color: kPrimaryColor),
                                             ),
                                             child: const Text(
                                               'Update Now',

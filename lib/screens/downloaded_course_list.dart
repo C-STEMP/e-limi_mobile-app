@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:elimiafrica/models/course_db_model.dart';
 import 'package:elimiafrica/models/video_db_model.dart';
 import 'package:elimiafrica/providers/database_helper.dart';
@@ -18,24 +20,47 @@ class DownloadedCourseList extends StatefulWidget {
 
 class _DownloadedCourseListState extends State<DownloadedCourseList> {
   String? path;
-  var lessonCount = 0;
 
   List<VideoModel> listVideos = [];
+  List<int> courseArr = [];
+
 
   Future<List<Map<String, dynamic>>?> getVideos() async {
     List<Map<String, dynamic>> listMap =
         await DatabaseHelper.instance.queryAllRows('video_list');
     setState(() {
       for (var map in listMap) {
+        // File checkPath = File("${map['path']}/${map['title']}");
+        // if(checkPath.existsSync()) {
+        //   listVideos.add(VideoModel.fromMap(map));
+        //   courseArr.add(map['course_id']);
+        // } else {
+        //   DatabaseHelper.instance.removeVideo(map['id']);
+        // }
         listVideos.add(VideoModel.fromMap(map));
       }
     });
     return null;
   }
 
+  // Future<List<Map<String, dynamic>>?> getCourse() async {
+  //   List<Map<String, dynamic>> listMap =
+  //       await DatabaseHelper.instance.queryAllRows('course_list');
+    
+  //   for (var map in listMap) {
+  //     if(!courseArr.contains(map['course_id'])){
+  //       await DatabaseHelper.instance.removeCourse(map['course_id']);
+  //       await DatabaseHelper.instance.removeCourseSection(map['course_id']);
+  //     }
+  //   }
+
+  //   return null;
+  // }
+
   @override
   void initState() {
     getVideos();
+    // getCourse();
     super.initState();
   }
 
@@ -43,8 +68,13 @@ class _DownloadedCourseListState extends State<DownloadedCourseList> {
     var count = 0;
     for (int i = 0; i < listVideos.length; i++) {
       VideoModel getVideo = listVideos[i];
-      if (getVideo.courseId == courseId) {
-        count = count + 1;
+      File checkPath = File("${getVideo.path}/${getVideo.title}");
+      if(checkPath.existsSync()) {
+        if (getVideo.courseId == courseId) {
+          count = count + 1;
+        }
+      } else {
+        DatabaseHelper.instance.removeVideo(getVideo.id!);
       }
     }
     return CustomText(
@@ -53,6 +83,22 @@ class _DownloadedCourseListState extends State<DownloadedCourseList> {
       colors: Colors.black54,
     );
   }
+
+  // lessonCount(courseId) {
+  //   var count = 0;
+  //   for (int i = 0; i < listVideos.length; i++) {
+  //     VideoModel getVideo = listVideos[i];
+  //     File checkPath = File("${getVideo.path}/${getVideo.title}");
+  //     if(checkPath.existsSync()) {
+  //       if (getVideo.courseId == courseId) {
+  //         count = count + 1;
+  //       }
+  //     } else {
+  //       DatabaseHelper.instance.removeVideo(getVideo.id!);
+  //     }
+  //   }
+  //   return count;
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +140,7 @@ class _DownloadedCourseListState extends State<DownloadedCourseList> {
                     ],
                   ),
                 )
-              : StaggeredGridView.countBuilder(
+              : AlignedGridView.count(
                   padding: const EdgeInsets.all(10.0),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -172,9 +218,7 @@ class _DownloadedCourseListState extends State<DownloadedCourseList> {
                         ),
                       ),
                     );
-                  },
-                  staggeredTileBuilder: (int index) =>
-                      const StaggeredTile.fit(1),
+                  }, 
                   mainAxisSpacing: 5.0,
                   crossAxisSpacing: 5.0,
                 );

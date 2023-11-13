@@ -108,11 +108,11 @@ class _SearchForumState extends State<SearchForum> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : SingleChildScrollView(
               child: Padding(
@@ -161,11 +161,11 @@ class _SearchForumState extends State<SearchForum> {
                                 reset();
                               }
                             },
-                            color: kRedColor,
+                            color: kPrimaryColor,
                             shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadiusDirectional.circular(10),
-                              // side: const BorderSide(color: kRedColor),
+                              // side: const BorderSide(color: kPrimaryColor),
                             ),
                             child: const Icon(
                               Icons.search,

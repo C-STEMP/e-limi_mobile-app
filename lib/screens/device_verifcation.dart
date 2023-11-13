@@ -1,61 +1,70 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:elimiafrica/models/common_functions.dart';
-import 'package:elimiafrica/models/update_user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../constants.dart';
+import '../models/update_verify_model.dart';
 import 'auth_screen.dart';
+import 'tabs_screen.dart';
 
-class VerificationScreen extends StatefulWidget {
-  static const routeName = '/email_verification';
-  const VerificationScreen({Key? key}) : super(key: key);
+class DeviceVerificationScreen extends StatefulWidget {
+  static const routeName = '/device_verification';
+  const DeviceVerificationScreen({Key? key}) : super(key: key);
 
   @override
   // ignore: library_private_types_in_public_api
-  _VerificationScreenState createState() => _VerificationScreenState();
+  _DeviceVerificationScreenState createState() => _DeviceVerificationScreenState();
 }
 
-Future<UpdateUserModel> verifyEmail(
-    String email, String verificationCode) async {
-  const String apiUrl = "$BASE_URL/api/verify_email_address";
+Future<UpdateVerifyModel> verifyEmail(
+    String email, String verificationCode, String token) async {
+  const String apiUrl = "$BASE_URL/api/new_login_confirmation/submit";
 
   final response = await http.post(Uri.parse(apiUrl), body: {
     'email': email,
-    'verification_code': verificationCode,
+    'new_device_verification_code': verificationCode,
+    'auth_token': token
   });
+
+  // print(response.body);
 
   if (response.statusCode == 200) {
     final String responseString = response.body;
 
-    return updateUserModelFromJson(responseString);
+    return updateVerifyModelFromJson(responseString);
   } else {
     throw Exception('Failed to load data');
   }
 }
 
-Future<UpdateUserModel> resendCode(String email) async {
-  const String apiUrl = "$BASE_URL/api/resend_verification_code";
+Future<UpdateVerifyModel> resendCode(String email, String token) async {
+  const String apiUrl = "$BASE_URL/api/new_login_confirmation/resend";
 
-  final response = await http.post(Uri.parse(apiUrl), body: {
-    'email': email,
-  });
+  final response = await http.post(Uri.parse(apiUrl), 
+    body: {
+      'auth_token': token
+    }
+  );
+
+  // print(response.body);
 
   if (response.statusCode == 200) {
     final String responseString = response.body;
 
-    return updateUserModelFromJson(responseString);
+    return updateVerifyModelFromJson(responseString);
   } else {
     throw Exception('Failed to load data');
   }
 }
 
-class _VerificationScreenState extends State<VerificationScreen> {
+class _DeviceVerificationScreenState extends State<DeviceVerificationScreen> {
   GlobalKey<FormState> globalFormKey = GlobalKey<FormState>();
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   var _isLoading = false;
+  var _isResendLoading = false;
 
   final _boxController1 = TextEditingController();
   final _boxController2 = TextEditingController();
@@ -110,11 +119,18 @@ class _VerificationScreenState extends State<VerificationScreen> {
       _isLoading = true;
     });
     try {
-      final email = ModalRoute.of(context)!.settings.arguments as String;
-      final UpdateUserModel user = await verifyEmail(email, _value);
 
-      if (user.status == 200) {
-        Navigator.of(context).pushNamed(AuthScreen.routeName);
+      final Map<String, dynamic> arguments = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+
+
+      final email = arguments['email'];
+      final token = arguments['token'];
+
+      final UpdateVerifyModel user = await verifyEmail(email, _value, token);
+
+      if (user.validity == 1) {
+        Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const TabsScreen()));
         CommonFunctions.showSuccessToast(user.message.toString());
       } else {
         CommonFunctions.showErrorDialog(user.message.toString(), context);
@@ -129,16 +145,22 @@ class _VerificationScreenState extends State<VerificationScreen> {
   }
 
   Future<void> _resend() async {
-    // setState(() {
-    //   _isLoading = true;
-    // });
+    setState(() {
+      _isResendLoading = true;
+    });
     try {
-      final email = ModalRoute.of(context)!.settings.arguments as String;
-      final UpdateUserModel user = await resendCode(email);
+      final Map<String, dynamic> arguments = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
-      if (user.status == 200) {
-        Navigator.of(context)
-            .pushNamed(VerificationScreen.routeName, arguments: email);
+
+      final email = arguments['email'];
+      final token = arguments['token'];
+      final UpdateVerifyModel user = await resendCode(email, token);
+
+      if (user.validity == 1) {
+        Navigator.of(context).pushNamed(DeviceVerificationScreen.routeName, arguments: {
+          'email': email,
+          'token': token,
+        });
         CommonFunctions.showSuccessToast(user.message.toString());
       } else {
         CommonFunctions.showErrorDialog(user.message.toString(), context);
@@ -147,9 +169,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
       const errorMsg = 'Could not send code!';
       CommonFunctions.showErrorDialog(errorMsg, context);
     }
-    // setState(() {
-    //   _isLoading = false;
-    // });
+    setState(() {
+      _isResendLoading = false;
+    });
   }
 
   InputDecoration getInputDecoration(String hintext, IconData iconData) {
@@ -360,7 +382,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
                           'Enter 6 digit verification code send to your email.',
                           style: TextStyle(color: kSecondaryColor),
                         ),
-                        TextButton(
+                        _isResendLoading
+                        ? const Center(child: CircularProgressIndicator()) 
+                        : TextButton(
                           onPressed: _resend,
                           child: const Text(
                             'Resend',

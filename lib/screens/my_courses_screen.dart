@@ -104,8 +104,8 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
     return Scaffold(
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : bundleStatus == true
               ? NestedScrollView(
@@ -119,18 +119,18 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
                           child: TabBar(
                             controller: _tabController,
                             isScrollable: false,
-                            indicatorColor: kRedColor,
+                            indicatorColor: kPrimaryColor,
                             indicatorSize: TabBarIndicatorSize.tab,
                             indicator: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
-                                color: kRedColor),
+                                color: kPrimaryColor),
                             unselectedLabelColor: Colors.black87,
                             labelColor: Colors.white,
-                            tabs: [
+                            tabs: const [
                               Tab(
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
+                                  children: [
                                     Icon(
                                       Icons.play_lesson,
                                       size: 15,
@@ -148,7 +148,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
                               Tab(
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
+                                  children: [
                                     Icon(
                                       Icons.all_inbox,
                                       size: 15,
@@ -184,9 +184,9 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
                             vertical: 10, horizontal: 20),
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const <Widget>[
+                          children: <Widget>[
                             Text(
                               'My Courses',
                               style: TextStyle(
@@ -209,8 +209,8 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
         if (dataSnapshot.connectionState == ConnectionState.waiting) {
           return SizedBox(
             height: MediaQuery.of(context).size.height * .7,
-            child: const Center(
-              child: CircularProgressIndicator(),
+            child: Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             ),
           );
         } else {
@@ -244,7 +244,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
           } else {
             return Consumer<MyCourses>(
               builder: (context, myCourseData, child) =>
-                  StaggeredGridView.countBuilder(
+                  AlignedGridView.count(
                 padding: const EdgeInsets.all(10.0),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -256,7 +256,6 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
                   );
                   // return Text(myCourseData.items[index].title);
                 },
-                staggeredTileBuilder: (int index) => const StaggeredTile.fit(1),
                 mainAxisSpacing: 5.0,
                 crossAxisSpacing: 5.0,
               ),
@@ -273,8 +272,8 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
         future: Provider.of<MyBundles>(context, listen: false).fetchMybundles(),
         builder: (ctx, dataSnapshot) {
           if (dataSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             );
           } else {
             if (dataSnapshot.error != null) {
@@ -308,7 +307,7 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
             } else {
               return Consumer<MyBundles>(
                 builder: (context, myBundleData, child) =>
-                    StaggeredGridView.countBuilder(
+                    AlignedGridView.count(
                   padding: const EdgeInsets.all(10.0),
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -320,8 +319,6 @@ class _MyCoursesScreenState extends State<MyCoursesScreen>
                     );
                     // return Text(myCourseData.items[index].title);
                   },
-                  staggeredTileBuilder: (int index) =>
-                      const StaggeredTile.fit(1),
                   mainAxisSpacing: 5.0,
                   crossAxisSpacing: 5.0,
                 ),

@@ -70,11 +70,11 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : SingleChildScrollView(
               child: Column(
@@ -205,7 +205,7 @@ class _BundleDetailsScreenState extends State<BundleDetailsScreen> {
                           color: bundles[0].subscriptionStatus == 'valid' ||
                                   bundles[0].subscriptionStatus == 'expired'
                               ? kGreenPurchaseColor
-                              : kRedColor,
+                              : kPrimaryColor,
                           textColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 20, vertical: 10),

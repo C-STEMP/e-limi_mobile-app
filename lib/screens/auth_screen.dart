@@ -1,12 +1,17 @@
-import 'dart:io';
+// ignore_for_file: use_build_context_synchronously
 
 import 'package:elimiafrica/constants.dart';
 import 'package:elimiafrica/models/common_functions.dart';
 import 'package:elimiafrica/providers/auth.dart';
 import 'package:elimiafrica/screens/forgot_password_screen.dart';
 import 'package:elimiafrica/screens/signup_screen.dart';
+import 'package:elimiafrica/widgets/string_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../models/user.dart';
+import 'device_verifcation.dart';
 
 class AuthScreen extends StatefulWidget {
   static const routeName = '/auth';
@@ -30,6 +35,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  late User userDetails;
 
   Color getColor(Set<MaterialState> states) {
     const Set<MaterialState> interactiveStates = <MaterialState>{
@@ -89,27 +95,53 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() {
       _isLoading = true;
     });
-    try {
-      // Log user in
-      await Provider.of<Auth>(context, listen: false).login(
-        _authData['email'].toString(),
-        _authData['password'].toString(),
-      );
 
-      // ignore: use_build_context_synchronously
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
-      CommonFunctions.showSuccessToast('Login Successful');
-    } on HttpException {
-      var errorMsg = 'Auth failed';
-      CommonFunctions.showErrorDialog(errorMsg, context);
-    } catch (error) {
-      // print(error);
-      const errorMsg = 'Could not authenticate!';
-      CommonFunctions.showErrorDialog(errorMsg, context);
+    await Provider.of<Auth>(context, listen: false).login(
+      _authData['email'].toString(),
+      _authData['password'].toString(),
+    ).then((_) {
+      setState(() {
+        _isLoading = false;
+        userDetails = Provider.of<Auth>(context, listen: false).user;
+      });
+    });
+
+    if(userDetails.validity == 1){
+      if(userDetails.deviceVerification == 'needed-verification') {
+        Navigator.of(context).pushNamed(DeviceVerificationScreen.routeName,
+          arguments: {
+            'email': userDetails.email,
+            'token': userDetails.token, // Replace with the actual token value
+          });
+        CommonFunctions.showSuccessToast(
+          userDetails.deviceVerification!.capitalize(),
+        );
+      } else {
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false);
+        CommonFunctions.showSuccessToast('Welcome, ${userDetails.firstName} ${userDetails.lastName}');
+      }
+    } else {
+      CommonFunctions.showErrorDialog(userDetails.deviceVerification!.capitalize(), context);
     }
+
     setState(() {
       _isLoading = false;
     });
+  }
+
+
+  @override
+  void initState(){
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.white,
+          statusBarIconBrightness: Brightness.dark,
+        )
+    );
+
+    // _regCubit = BlocProvider.of<RegCubit>(context);
+    // emailFocus.addListener(_onFocusChange);
   }
 
   @override
@@ -156,7 +188,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           'Log in',
                           style: TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w400,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -293,19 +325,19 @@ class _AuthScreenState extends State<AuthScreen> {
                                   padding: const EdgeInsets.all(15.0),
                                   child: MaterialButton(
                                     elevation: 0,
-                                    color: kRedColor,
+                                    color: kPrimaryColor,
                                     onPressed: _submit,
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 20, vertical: 16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius:
                                           BorderRadiusDirectional.circular(10),
-                                      // side: const BorderSide(color: kRedColor),
+                                      // side: const BorderSide(color: kPrimaryColor),
                                     ),
-                                    child: Row(
+                                    child: const Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
-                                      children: const [
+                                      children: [
                                         Text(
                                           'Log In',
                                           style: TextStyle(
@@ -346,8 +378,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: const Text(
                       ' Sign up',
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.w400,
+                        color: kPrimaryColor
                       ),
                     ),
                   ),

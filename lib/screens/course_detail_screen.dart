@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:elimiafrica/models/common_functions.dart';
 import 'package:elimiafrica/providers/shared_pref_helper.dart';
@@ -37,18 +37,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
   var _isLoading = false;
   String? _authToken;
   dynamic loadedCourseDetail;
+  dynamic loadedCourse;
   dynamic courseId;
   int? selected;
-
-  @override
-  void initState() {
-    _tabController = TabController(length: 3, vsync: this);
-    super.initState();
-  }
-
-  void _launchURL(String url) async => await canLaunch(url)
-      ? await launch(url, forceSafariVC: false)
-      : throw 'Could not launch $url';
 
   @override
   void didChangeDependencies() async {
@@ -64,18 +55,20 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
         }
       });
 
-      // ignore: use_build_context_synchronously
       courseId = ModalRoute.of(context)!.settings.arguments as int;
+      debugPrint(courseId.toString());
 
-      // ignore: use_build_context_synchronously
+      loadedCourse =
+      Provider.of<Courses>(context, listen: false).findById(courseId);
+
       Provider.of<Courses>(context, listen: false)
           .fetchCourseDetailById(courseId)
           .then((_) {
         loadedCourseDetail =
             Provider.of<Courses>(context, listen: false).getCourseDetail;
         // ignore: unused_local_variable
-        final activeCourse =
-            Provider.of<Courses>(context, listen: false).findById(courseId);
+        // loadedCourse =
+        //     Provider.of<Courses>(context, listen: false).findById(courseId);
         setState(() {
           _isLoading = false;
         });
@@ -85,19 +78,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
     super.didChangeDependencies();
   }
 
+  void _launchURL(String url) async => await canLaunch(url)
+      ? await launch(url, forceSafariVC: false)
+      : throw 'Could not launch $url';
+  
+  @override
+  void initState() {
+    _tabController = TabController(length: 3, vsync: this);
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final courseId = ModalRoute.of(context)!.settings.arguments as int;
-    final loadedCourse = Provider.of<Courses>(
-      context,
-      listen: false,
-    ).findById(courseId);
     return Scaffold(
-      appBar: CustomAppBarTwo(),
+      appBar: const CustomAppBarTwo(),
       backgroundColor: kBackgroundColor,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
+          ? Center(
+              child: CircularProgressIndicator(color: kPrimaryColor.withOpacity(0.7)),
             )
           : Consumer<Courses>(
               builder: (context, courses, child) {
@@ -127,7 +125,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                           Colors.black.withOpacity(0.6),
                                           BlendMode.dstATop),
                                       image: NetworkImage(
-                                        loadedCourse.thumbnail.toString(),
+                                        loadedCourse.thumbnail,
                                       ),
                                     )),
                               ),
@@ -225,7 +223,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                       }
                                     },
                                     tooltip: 'Wishlist',
-                                    backgroundColor: kRedColor,
+                                    backgroundColor: kPrimaryColor,
                                     child: Icon(
                                       loadedCourseDetail.isWishlisted!
                                           ? Icons.favorite
@@ -333,13 +331,11 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                             ),
                             MaterialButton(
                               onPressed: () async {
-                                _authToken = await SharedPreferenceHelper()
-                                    .getAuthToken();
-                                if (!loadedCourseDetail.isPurchased!) {
+                                _authToken = await SharedPreferenceHelper().getAuthToken();
+                                if (!(loadedCourseDetail.isPurchased ?? false)) {
                                   if (_authToken != null) {
                                     if (loadedCourse.isFreeCourse == '1') {
                                       // final _url = BASE_URL + '/api/enroll_free_course?course_id=$courseId&auth_token=$_authToken';
-                                      // ignore: use_build_context_synchronously
                                       Provider.of<Courses>(context,
                                               listen: false)
                                           .getEnrolled(courseId)
@@ -357,9 +353,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                   }
                                 }
                               },
-                              color: loadedCourseDetail.isPurchased!
-                                  ? kGreenPurchaseColor
-                                  : kRedColor,
+                              // color: loadedCourseDetail.isPurchased!
+                              //     ? kGreenPurchaseColor
+                              //     : kPrimaryColor,
+                              color: kGreenPurchaseColor,
                               textColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20, vertical: 10),
@@ -369,10 +366,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                 // side: BorderSide(color: kBlueColor),
                               ),
                               child: Text(
-                                loadedCourseDetail.isPurchased!
-                                    ? 'Purchased'
+                                loadedCourseDetail.isPurchased == null
+                                    ? 'Enroll'
                                     : loadedCourse.isFreeCourse == '1'
-                                        ? 'Get Enroll'
+                                        ? 'Enroll'
                                         : 'Buy Now',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w400, fontSize: 16),
@@ -403,7 +400,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen>
                                         indicator: BoxDecoration(
                                             borderRadius:
                                                 BorderRadius.circular(10),
-                                            color: kRedColor),
+                                            color: kPrimaryColor),
                                         unselectedLabelColor: kTextColor,
                                         padding: const EdgeInsets.all(10),
                                         labelColor: Colors.white,

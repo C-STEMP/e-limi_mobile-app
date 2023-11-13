@@ -7,7 +7,6 @@ import 'package:elimiafrica/providers/database_helper.dart';
 import 'package:elimiafrica/widgets/custom_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:html_unescape/html_unescape.dart';
 import 'package:pod_player/pod_player.dart';
 import 'downloaded_course_list.dart';
@@ -37,6 +36,12 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
     setState(() {
       for (var map in listMap) {
         listVideos.add(VideoModel.fromMap(map));
+        // File checkPath = File("${map['path']}/${map['title']}");
+        // if(checkPath.existsSync()) {
+        //   listVideos.add(VideoModel.fromMap(map));
+        // } else {
+
+        // }
       }
     });
     return null;
@@ -237,14 +242,14 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                                                               AlertDialog(
                                                             title: const Text(
                                                                 'Notifying'),
-                                                            content: Column(
+                                                            content: const Column(
                                                               mainAxisSize:
                                                                   MainAxisSize
                                                                       .min,
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
                                                                       .start,
-                                                              children: const <
+                                                              children: <
                                                                   Widget>[
                                                                 Text(
                                                                     'Do you wish to remove this lesson?'),
@@ -279,10 +284,10 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                                                                       .removeVideo(
                                                                           getVideo
                                                                               .id!);
-                                                                  await FlutterDownloader
-                                                                      .remove(
-                                                                          taskId:
-                                                                              getVideo.downloadId);
+                                                                  // await FlutterDownloader
+                                                                  //     .remove(
+                                                                  //         taskId:
+                                                                  //             getVideo.downloadId);
                                                                   setState(() {
                                                                     listVideos.removeWhere((item) =>
                                                                         item.id ==
@@ -352,7 +357,7 @@ class _VideoAppState extends State<VideoApp> {
   @override
   void initState() {
     controller = PodPlayerController(
-      playVideoFrom: PlayVideoFrom.file(widget.file),
+      playVideoFrom: PlayVideoFrom.file(widget.file!),
     )..initialise();
     super.initState();
   }
